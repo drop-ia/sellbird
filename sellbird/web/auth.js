@@ -63,7 +63,11 @@ function authFetch(path, opts) {
   if (token) headers.set('Authorization', 'Bearer ' + token);
   o.headers = headers;
   o.mode = 'same-origin';
-  o.credentials = 'omit';
+  // drop-ia: 'same-origin', not 'omit', so Cloudflare Access gets its own
+  // CF_Authorization cookie on every call (deploy/dokploy). The dashboard
+  // never reads cookies, and the Caddy front strips them before it anyway;
+  // the token still travels only in the Authorization header.
+  o.credentials = 'same-origin';
   o.cache = 'no-store';
   o.redirect = 'error';
   // Not 'no-referrer': per the Fetch spec that makes a POST's Origin "null"
