@@ -40,6 +40,10 @@ COPY --chmod=755 deploy/dokploy/start.sh /usr/local/bin/sellbird-start
 USER sellbird
 ENV PATH="/home/sellbird/.local/bin:${PATH}"
 
+# /app is a checkout, so the dashboard asks for its .venv. A real one over the
+# image's packages: nothing is installed twice.
+RUN python -m venv --system-site-packages /app/.venv
+
 RUN installer="$(mktemp)" \
     && curl -fsSL https://claude.ai/install.sh -o "$installer" \
     && bash "$installer" \
