@@ -1,0 +1,53 @@
+# Sellbird for Dokploy (drop-ia/sellbird, issue #1): the upstream image plus a
+# Caddy front on :8080 (deploy/dokploy/Caddyfile), with the home in /data.
+# Volumes: /data (config, .env, knowledge, data) and /home/sellbird/.claude.
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    SELLBIRD_HOME=/data
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/* /root/.cache
+
+ARG SELLBIRD_UID=1000
+ARG SELLBIRD_GID=1000
+RUN groupadd --gid "$SELLBIRD_GID" sellbird \
+    && useradd --create-home --uid "$SELLBIRD_UID" --gid "$SELLBIRD_GID" sellbird \
+    && mkdir -p /data /home/sellbird/.claude \
+    && chown -R sellbird:sellbird /app /data /home/sellbird /ms-playwright
+
+# pyproject.toml makes /app a checkout, so the first run seeds /data with the
+# shipped sellbird.yaml, .env.example, prompts/ and skills/ (never overwriting).
+COPY --chown=sellbird:sellbird pyproject.toml .env.example sellbird.yaml ./
+COPY --chown=sellbird:sellbird sellbird/ sellbird/
+COPY --chown=sellbird:sellbird prompts/ prompts/
+COPY --chown=sellbird:sellbird skills/ skills/
+COPY --from=caddy:2.8.4 /usr/bin/caddy /usr/local/bin/caddy
+COPY deploy/dokploy/Caddyfile /etc/caddy/Caddyfile
+COPY --chmod=755 deploy/dokploy/start.sh /usr/local/bin/sellbird-start
+
+USER sellbird
+ENV PATH="/home/sellbird/.local/bin:${PATH}"
+
+RUN installer="$(mktemp)" \
+    && curl -fsSL https://claude.ai/install.sh -o "$installer" \
+    && bash "$installer" \
+    && rm "$installer" \
+    && python -c "from sellbird.claude_runtime import check_cli; print(check_cli())"
+
+EXPOSE 8080
+HEALTHCHECK --interval=1m --timeout=10s --start-period=1m --retries=3 \
+  CMD python -c "import socket; [socket.create_connection(a, timeout=5).close() for a in (('127.0.0.1', 5555), ('127.0.0.1', 8080))]"
+
+ENTRYPOINT ["/usr/local/bin/sellbird-start"]
