@@ -1,0 +1,19 @@
+# Only files required by COPY enter the build context. Never send user data,
+# credentials, Git history, environments, or browser artifacts to the builder.
+**
+!Dockerfile
+!requirements.txt
+!sellbird.yaml
+!sellbird/
+!sellbird/**
+!prompts/
+!prompts/**
+!skills/
+!skills/**
+!pyproject.toml
+!.env.example
+!deploy/
+!deploy/dokploy/
+!deploy/dokploy/**
+**/__pycache__
+**/*.pyc
