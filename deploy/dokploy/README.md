@@ -8,6 +8,7 @@ Issue: drop-ia/sellbird#1.
 - El panel de Sellbird solo atiende en `127.0.0.1:5555` y rechaza cualquier otro dominio. Caddy (`deploy/dokploy/Caddyfile`) recibe `sellbird.dropia.uy` en el 8080 y se lo pasa al panel como si fuera local.
 - Caddy responde 403 a todo lo que no llegue por Cloudflare (por IP de origen) o no traiga la identidad de Cloudflare Access (`Cf-Access-Jwt-Assertion`). Solo traduce el `Origin` público (`SELLBIRD_PUBLIC_ORIGIN`, por defecto `https://sellbird.dropia.uy`); cualquier otro llega tal cual y el panel lo rechaza.
 - El panel sigue pidiendo su propio link de desbloqueo: está en el log del contenedor.
+- Único cambio a un archivo de upstream: `sellbird/web/auth.js` manda las llamadas con `credentials: 'same-origin'` en lugar de `'omit'`, para que Cloudflare Access reciba su cookie `CF_Authorization`. Sin ella, Access redirige cada llamada al login y el panel muestra «Dashboard can't reach the server». Caddy borra las cookies antes del panel; el token sigue yendo solo en `Authorization`. Al traer upstream, conservar este cambio.
 
 ## Volúmenes
 
