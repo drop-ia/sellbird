@@ -19,7 +19,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
+# PyJWT and cryptography for deploy/dokploy/access_auth.py: pinned here because
+# Sellbird itself only gets them through other packages.
+RUN pip install --no-cache-dir -r requirements.txt "PyJWT[crypto]==2.15.1" \
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/* /root/.cache
 
@@ -39,6 +41,7 @@ COPY --chown=sellbird:sellbird skills/ skills/
 COPY --from=caddy:2.8.4 /usr/bin/caddy /usr/local/bin/caddy
 COPY deploy/dokploy/Caddyfile /etc/caddy/Caddyfile
 COPY --chmod=755 deploy/dokploy/start.sh /usr/local/bin/sellbird-start
+COPY deploy/dokploy/access_auth.py /usr/local/lib/sellbird/access_auth.py
 
 USER sellbird
 ENV PATH="/home/sellbird/.local/bin:${PATH}"
@@ -55,6 +58,6 @@ RUN installer="$(mktemp)" \
 
 EXPOSE 8080
 HEALTHCHECK --interval=1m --timeout=10s --start-period=1m --retries=3 \
-  CMD python -c "import socket; [socket.create_connection(a, timeout=5).close() for a in (('127.0.0.1', 5555), ('127.0.0.1', 8080))]"
+  CMD python -c "import socket; [socket.create_connection(a, timeout=5).close() for a in (('127.0.0.1', 5555), ('127.0.0.1', 5556), ('127.0.0.1', 8080))]"
 
 ENTRYPOINT ["/usr/local/bin/sellbird-start"]

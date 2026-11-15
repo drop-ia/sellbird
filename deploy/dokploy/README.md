@@ -7,7 +7,8 @@ Issue: drop-ia/sellbird#1.
 - Una aplicación de Dokploy que se construye con `Dockerfile.dokploy` (sin docker-compose). Expone el puerto 8080.
 - El panel de Sellbird solo atiende en `127.0.0.1:5555` y rechaza cualquier otro dominio. Caddy (`deploy/dokploy/Caddyfile`) recibe `sellbird.dropia.uy` en el 8080 y se lo pasa al panel como si fuera local.
 - Caddy responde 403 a todo lo que no llegue por Cloudflare (por IP de origen) o no traiga la identidad de Cloudflare Access (`Cf-Access-Jwt-Assertion`). Solo traduce el `Origin` público (`SELLBIRD_PUBLIC_ORIGIN`, por defecto `https://sellbird.dropia.uy`); cualquier otro llega tal cual y el panel lo rechaza.
-- El panel sigue pidiendo su propio link de desbloqueo: está en el log del contenedor.
+- El encabezado de Access solo no alcanza: cualquier cuenta de Cloudflare puede llegar a este servidor con uno inventado. `deploy/dokploy/access_auth.py` (en `127.0.0.1:5556`) comprueba la firma del JWT con las claves del equipo de Access, la audiencia de la aplicación, el vencimiento y que el correo esté en `SELLBIRD_ACCESS_EMAILS`. Si todo cierra, Caddy le pasa al panel su token (`/data/data/dashboard-token`) en `Authorization`, así nadie tiene que pegarlo. Si algo falla, o el verificador no responde, la respuesta es 403.
+- Variables de Dokploy para eso: `SELLBIRD_ACCESS_TEAM_DOMAIN` (el dominio del equipo, `<equipo>.cloudflareaccess.com`), `SELLBIRD_ACCESS_AUD` (el AUD de la aplicación, en Zero Trust → Access → la aplicación) y `SELLBIRD_ACCESS_EMAILS` (los correos separados por coma). Sin las dos primeras, el contenedor no arranca. Al sumar a alguien en la política de Access, sumarlo también en `SELLBIRD_ACCESS_EMAILS`.
 - Único cambio a un archivo de upstream: `sellbird/web/auth.js` manda las llamadas con `credentials: 'same-origin'` en lugar de `'omit'`, para que Cloudflare Access reciba su cookie `CF_Authorization`. Sin ella, Access redirige cada llamada al login y el panel muestra «Dashboard can't reach the server». Caddy borra las cookies antes del panel; el token sigue yendo solo en `Authorization`. Al traer upstream, conservar este cambio.
 
 ## Volúmenes
@@ -25,7 +26,7 @@ La primera vez, `/data` se llena con los archivos por defecto. Nunca se pisan de
 2. Desplegar en Dokploy con dominio `sellbird.dropia.uy`, puerto 8080, HTTPS.
 3. En la terminal del contenedor: `claude` e iniciar sesión con la cuenta de Claude.
 4. En la terminal: `python -m sellbird setup` (el asistente de configuración), o completar `/data/.env` y `/data/sellbird.yaml` desde el panel.
-5. Abrir el link de desbloqueo del log cambiando `http://127.0.0.1:5555` por `https://sellbird.dropia.uy`.
+5. Cargar `SELLBIRD_ACCESS_TEAM_DOMAIN`, `SELLBIRD_ACCESS_AUD` y `SELLBIRD_ACCESS_EMAILS`, y entrar a `https://sellbird.dropia.uy` con el código que manda Access.
 
 ## Correo
 
