@@ -4,7 +4,8 @@
 # loopback. Traefik (Dokploy) sends the public request here, on :8080; this
 # proxy only lets through requests that came through Cloudflare (where
 # Cloudflare Access asks who you are) and hands them to the dashboard as local.
-# The dashboard's own unlock token is still required on every API call.
+# access_auth.py checks the signature of each Access identity; only then does the
+# request get the dashboard's own token, so nobody has to paste it.
 {
 	admin off
 	auto_https off
@@ -28,6 +29,16 @@
 		# Cloudflare Access puts this header on every request it lets through.
 		@no_access_identity not header Cf-Access-Jwt-Assertion *
 		respond @no_access_identity "Forbidden" 403
+
+		# The header alone proves nothing: any Cloudflare account can reach this
+		# origin with one. access_auth.py checks it is signed by our Access team for
+		# this application, and only then answers with the dashboard token, which
+		# replaces whatever Authorization the browser sent. Any refusal, or the
+		# checker being down, ends the request here.
+		forward_auth 127.0.0.1:5556 {
+			uri /verify
+			copy_headers X-Sellbird-Authorization>Authorization
+		}
 
 		# Only the public origin is translated to the local one: any other Origin
 		# reaches the dashboard as it came, and its cross-origin check refuses it.
