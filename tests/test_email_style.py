@@ -162,6 +162,24 @@ async def test_with_operator_rules_there_is_no_added_sign_off():
     assert out["body"] == CLEAN + "\n\nThe Team"
 
 
+
+@pytest.mark.asyncio
+async def test_with_operator_rules_a_rewrite_keeps_the_length_and_the_signature():
+    brain = FixingBrain([{"subject": "x", "body": CLEAN + "\n\nSaludos,\nSantiago"}])
+    await _writer(brain, rules="Sign off with the full signature.")._keep_to_rules(
+        {"subject": "x", "body": "Sam, slow callbacks — who answers after 5?\n\nSaludos,\nSantiago"}, step=1)
+    prompt = brain.prompts[0]
+    assert "keep its length" in prompt and "sign-off and signature exactly as written" in prompt
+    assert "Make it shorter" not in prompt and "no sign-off" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_without_operator_rules_a_rewrite_still_shortens_and_drops_the_sign_off():
+    brain = FixingBrain([{"subject": "missed calls", "body": CLEAN}])
+    await _writer(brain)._keep_to_rules(
+        {"subject": "missed calls", "body": "Sam, slow callbacks — who answers after 5?"}, step=1)
+    assert "Make it shorter, never longer" in brain.prompts[0]
+
 # ── The Sender holds them ─────────────────────────────────────────────────
 
 @pytest.mark.asyncio

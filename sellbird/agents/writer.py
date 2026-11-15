@@ -787,14 +787,23 @@ Return ONLY a JSON array (no markdown fences, no commentary):
                 body = body[: -len(first) - 2].rstrip()
         payload = {"subject": draft["subject"], "body": body}
         problems = "\n".join(f"- It {p}." for p in found)
+        if shape:
+            keep = ("Make it shorter, never longer: cut words instead of adding them. Plain text, no\n"
+                    "dash between words (use a period or a comma), no exclamation marks, no sign-off\n"
+                    "and no name at the end.")
+        else:
+            # The operator's email rules set the length, the structure and the
+            # sign-off: fix only what was found, so a stray dash doesn't cost
+            # the introduction and the signature.
+            keep = ("Change only what the problems above name, nothing else: keep its length, its\n"
+                    "paragraphs, its greeting and its sign-off and signature exactly as written.\n"
+                    "Plain text, no dash between words (use a period or a comma), no exclamation marks.")
         prompt = f"""This cold email (email {step} of a sequence) breaks Sellbird's writing rules:
 {problems}
 
 Rewrite it so it breaks none of them. Keep its facts, its one question and every
 merge variable such as {{{{first_name}}}} exactly as written; add no fact, name or claim.
-Make it shorter, never longer: cut words instead of adding them. Plain text, no
-dash between words (use a period or a comma), no exclamation marks, no sign-off
-and no name at the end.
+{keep}
 
 Draft:
 {fence(json.dumps(payload, ensure_ascii=False, indent=2), "draft")}
