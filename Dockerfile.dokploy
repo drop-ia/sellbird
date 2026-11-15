@@ -3,11 +3,14 @@
 # Volumes: /data (config, .env, knowledge, data) and /home/sellbird/.claude.
 FROM python:3.12-slim
 
+# PYTHONPATH: the dashboard starts the heartbeat (`python -m sellbird run`)
+# from SELLBIRD_HOME, so the code in /app has to be importable from anywhere.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
-    SELLBIRD_HOME=/data
+    SELLBIRD_HOME=/data \
+    PYTHONPATH=/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates libatomic1 \
